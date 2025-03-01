@@ -1,17 +1,17 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
-import { getCategoryList } from '@/services/categoryService'
 
 import { Button } from '@/components/Button'
 import { useIsInsideMobileNavigation } from '@/components/MobileNavigation'
 import { useSectionStore } from '@/components/SectionProvider'
 import { Tag } from '@/components/Tag'
 import { remToPx } from '@/lib/remToPx'
+import { getSnippets } from '@/services/snippetService'
 
 function useInitialValue(value, condition = true) {
   let initialValue = useRef(value).current
@@ -115,9 +115,6 @@ function ActivePageMarker({ group, pathname }) {
 }
 
 function NavigationGroup({ group, className }) {
-  // If this is the mobile navigation then we always render the initial
-  // state, so that the state does not change during the close animation.
-  // The state will still update when we re-open (re-render) the navigation.
   let isInsideMobileNavigation = useIsInsideMobileNavigation()
   let [pathname, sections] = useInitialValue(
     [usePathname(), useSectionStore((s) => s.sections)],
@@ -193,37 +190,34 @@ function NavigationGroup({ group, className }) {
 }
 
 export function Navigation(props) {
-  const [categories, setCategories] = useState([])
+  const [snippets, setSnippets] = useState([])
 
   useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const response = await getCategoryList()
-        if (response.data) {
-          setCategories([
-            {
-              title: 'Categories',
-              links: response.data.map((category) => ({
-                title: category.name,
-                href: `/category/${category.id}`,
-              })),
-            },
-          ])
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error)
+    async function fetchSnippets() {
+      const response = await getSnippets(1, 100)
+      if (response.data?.items) {
+        setSnippets(response.data.items)
       }
     }
-
-    fetchCategories()
+    fetchSnippets()
   }, [])
+
+  const navigation = [
+    {
+      title: 'Snippets',
+      links: snippets.map((snippet) => ({
+        title: snippet.title,
+        href: `/snippets/${snippet.id}`,
+      })),
+    },
+  ]
 
   return (
     <nav {...props}>
       <ul role="list">
         <TopLevelNavItem href="/">Home</TopLevelNavItem>
         <TopLevelNavItem href="/snippets">Snippets</TopLevelNavItem>
-        {categories.map((group, groupIndex) => (
+        {navigation.map((group, groupIndex) => (
           <NavigationGroup
             key={group.title}
             group={group}
